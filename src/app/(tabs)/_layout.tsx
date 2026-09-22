@@ -1,14 +1,13 @@
-// app/_layout.tsx (root layout)
-import { Stack } from "expo-router";
-export default function RootLayout() {
+// app/(tabs)/_layout.tsx
+import { Tabs } from "expo-router";
+export default function TabLayout() {
  return (
- <Stack>
- <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
- <Stack.Screen name="detail/[kota]" options={{ title: "Detail Cuaca" }} />
- <Stack.Screen
- name="tambah-favorit"
- options={{ presentation: "modal", title: "Tambah Favorit" }}
- />
- </Stack>
+ <Tabs screenOptions={{ headerShown: true }}>
+ <Tabs.Screen name="index" options={{ title: "Beranda" }} />
+ <Tabs.Screen name="riwayat" options={{ title: "Riwayat" }} />
+ <Tabs.Screen name="pengaturan" options={{ title: "Pengaturan" }} />
+ <Tabs.Screen name="tentang" options={{ title: "Tentang" }} />
+ </Tabs>
  );
 }
+
