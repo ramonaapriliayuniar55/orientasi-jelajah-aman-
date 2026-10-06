@@ -8,7 +8,7 @@ export default function SearchBox({ onCari }: SearchBoxProps) {
  const [teks, setTeks] = useState("");
  function handleChange(nilaiBaru: string) {
  setTeks(nilaiBaru);
- onCari(nilaiBaru); // kirim setiap perubahan, debounce diatur di pemanggilnya
+ onCari(nilaiBaru); // kirim setiap perubahan, debounce diatur di pemanggilny
  }
  return (
  <View>
