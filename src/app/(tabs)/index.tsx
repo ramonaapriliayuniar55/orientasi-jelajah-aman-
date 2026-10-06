@@ -1,5 +1,5 @@
 // src/app/(tabs)/index.tsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, ActivityIndicator, Button, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchBox from "../../components/searchbox";
@@ -14,8 +14,8 @@ import { labelKodeCuaca } from "../../constants/weatherCodes";
 import { HasilGeocoding } from "../../../types/geocoding";
 import { DataCuacaLengkap, DataKualitasUdara } from "../../../types/weather";
 import { mintaIzinLokasi, ambilKoordinatSaatIni } from "../../services/locationService";
-import { router } from "expo-router";
-
+import { router, useFocusEffect } from "expo-router"; // Ditambahkan useFocusEffect
+import { ambilSemuaFavorit } from "../../services/favoriteStorage"; // Ditambahkan untuk cek duplikat
 
 export default function HalamanUtama() {
   const [pesanLokasi, setPesanLokasi] = useState<string | null>(null);
@@ -27,6 +27,9 @@ export default function HalamanUtama() {
   const [sedangMemuat, setSedangMemuat] = useState(false);
   const [pesanError, setPesanError] = useState<string | null>(null);
 
+  // === TAMBAHAN: State untuk cek status duplikat favorit ===
+  const [isSudahFavorit, setIsSudahFavorit] = useState(false);
+
   const teksTertunda = useDebounce(teksCari, 500);
   const requestIdRef = useRef(0); // pencegah race condition
 
@@ -37,6 +40,22 @@ export default function HalamanUtama() {
     }
     cariKota(teksTertunda).then(setHasilPencarian).catch(() => setHasilPencarian([]));
   }, [teksTertunda]);
+
+  // === TAMBAHAN: Cek apakah kota terpilih sudah ada di daftar favorit ===
+  useFocusEffect(
+    useCallback(() => {
+      async function cekFavorit() {
+        if (kotaTerpilih && kotaTerpilih.id) {
+          const semuaFavorit = await ambilSemuaFavorit();
+          const sudahAda = semuaFavorit.some((fav: any) => fav.id === kotaTerpilih.id);
+          setIsSudahFavorit(sudahAda);
+        } else {
+          setIsSudahFavorit(false);
+        }
+      }
+      cekFavorit();
+    }, [kotaTerpilih])
+  );
 
   async function pilihKota(kota: HasilGeocoding) {
     setKotaTerpilih(kota);
@@ -58,26 +77,28 @@ export default function HalamanUtama() {
       if (idSaatIni === requestIdRef.current) setSedangMemuat(false);
     }
   }
+  
   async function gunakanLokasiSaatIni() {
- const status = await mintaIzinLokasi();
- if (status === "denied") {
- setPesanLokasi("Izin lokasi ditolak. Silakan cari kota secara manual di atas.");
- return;
- }
- if (status === "unavailable") {
- setPesanLokasi("Layanan lokasi tidak aktif di perangkat ini. Silakan cari kota secara manual.");
- return;
- }
- setPesanLokasi(null);
- const koordinat = await ambilKoordinatSaatIni();
- pilihKota({
- id: -1,
- name: "Lokasi Saat Ini",
- latitude: koordinat.latitude,
- longitude: koordinat.longitude,
- country: "",
- });
-}
+    const status = await mintaIzinLokasi();
+    if (status === "denied") {
+      setPesanLokasi("Izin lokasi ditolak. Silakan cari kota secara manual di atas.");
+      return;
+    }
+    if (status === "unavailable") {
+      setPesanLokasi("Layanan lokasi tidak aktif di perangkat ini. Silakan cari kota secara manual.");
+      return;
+    }
+    setPesanLokasi(null);
+    const koordinat = await ambilKoordinatSaatIni();
+    pilihKota({
+      id: -1,
+      name: "Lokasi Saat Ini",
+      latitude: koordinat.latitude,
+      longitude: koordinat.longitude,
+      country: "",
+    });
+  }
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: 16, flexGrow: 1, gap: 16 }}>
@@ -103,41 +124,45 @@ export default function HalamanUtama() {
             />
           </View>
         )}
-          {/* Tampilan Kartu Utama & Info Harian */}
+        
+        {/* Tampilan Kartu Utama & Info Harian */}
         {cuaca && kualitasUdara && kotaTerpilih && !sedangMemuat && (
- <>
- <WeatherCard
- kota={kotaTerpilih.name}
- suhu={cuaca.saatIni.suhu}
- tingkatAQI={konversiTingkatAQI(kualitasUdara.indeksAQI)}
- />
- <Button
- title="Tambahkan ke Favorit"
- onPress={() =>
- router.push({
- pathname: "/tambah-favorit",
- params: {
- id: String(kotaTerpilih.id),
- nama: kotaTerpilih.name,
- lat: String(kotaTerpilih.latitude),
- lon: String(kotaTerpilih.longitude),
- },
- })
- }
- />
- </>
-)}
+          <>
+            <WeatherCard
+              kota={kotaTerpilih.name}
+              suhu={cuaca.saatIni.suhu}
+              tingkatAQI={konversiTingkatAQI(kualitasUdara.indeksAQI)}
+            />
+            <Button
+              // Diubah: Judul berubah dan tombol dinonaktifkan jika sudah favorit
+              title={isSudahFavorit ? "Sudah Favorit" : "Tambahkan ke Favorit"}
+              disabled={isSudahFavorit} 
+              onPress={() =>
+                router.push({
+                  pathname: "/tambah-favorit",
+                  params: {
+                    id: String(kotaTerpilih.id),
+                    nama: kotaTerpilih.name,
+                    lat: String(kotaTerpilih.latitude),
+                    lon: String(kotaTerpilih.longitude),
+                  },
+                })
+              }
+            />
+          </>
+        )}
 
-{/* 2. PM2.5, PM10, dan Atribusi di Paling Bawah */}
-<View style={{ marginTop: "auto", paddingTop: 16, paddingBottom: 24, alignItems: "center" }}>
-  {kualitasUdara && (
-    <Text style={{ fontSize: 11, color: "#888", marginBottom: 6, textAlign: "center" }}>
-      PM2.5: {kualitasUdara.pm25} µg/m³ | PM10: {kualitasUdara.pm10} µg/m³
-    </Text>
-  )}
-  <AtribusiCuaca />
-</View>
+        {/* 2. PM2.5, PM10, dan Atribusi di Paling Bawah */}
+        <View style={{ marginTop: "auto", paddingTop: 16, paddingBottom: 24, alignItems: "center" }}>
+          {kualitasUdara && (
+            <Text style={{ fontSize: 11, color: "#888", marginBottom: 6, textAlign: "center" }}>
+              PM2.5: {kualitasUdara.pm25} µg/m³ | PM10: {kualitasUdara.pm10} µg/m³
+            </Text>
+          )}
+          <AtribusiCuaca />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
