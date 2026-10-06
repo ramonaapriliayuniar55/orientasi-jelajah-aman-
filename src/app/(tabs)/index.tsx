@@ -14,6 +14,7 @@ import { labelKodeCuaca } from "../../constants/weatherCodes";
 import { HasilGeocoding } from "../../../types/geocoding";
 import { DataCuacaLengkap, DataKualitasUdara } from "../../../types/weather";
 import { mintaIzinLokasi, ambilKoordinatSaatIni } from "../../services/locationService";
+import { router } from "expo-router";
 
 
 export default function HalamanUtama() {
@@ -103,26 +104,28 @@ export default function HalamanUtama() {
           </View>
         )}
           {/* Tampilan Kartu Utama & Info Harian */}
-{cuaca && kualitasUdara && kotaTerpilih && !sedangMemuat && (
-  <View style={{ gap: 8 }}>
-    <WeatherCard
-      kota={kotaTerpilih.name}
-      suhu={cuaca.saatIni.suhu}
-      tingkatAQI={konversiTingkatAQI(kualitasUdara.indeksAQI)}
-      indeksAQI={kualitasUdara.indeksAQI}
-    />
-
-    {/* 1. Suhu Maksimal & Minimal Harian Asli dari API */}
-    {cuaca.harian && (
-      <Text style={{ fontSize: 12, color: "#666", textAlign: "center" }}>
-        Suhu Hari Ini: Min {cuaca.harian.suhuMinimal[0]}°C / Maks {cuaca.harian.suhuMaksimal[0]}°C
-      </Text>
-    )}
-
-    <Text style={{ fontSize: 12, color: "#888", textAlign: "center" }}>
-      Kondisi: {labelKodeCuaca(cuaca.saatIni.kodeCuaca)} • Angin {cuaca.saatIni.kecepatanAngin} km/j
-    </Text>
-  </View>
+        {cuaca && kualitasUdara && kotaTerpilih && !sedangMemuat && (
+ <>
+ <WeatherCard
+ kota={kotaTerpilih.name}
+ suhu={cuaca.saatIni.suhu}
+ tingkatAQI={konversiTingkatAQI(kualitasUdara.indeksAQI)}
+ />
+ <Button
+ title="Tambahkan ke Favorit"
+ onPress={() =>
+ router.push({
+ pathname: "/tambah-favorit",
+ params: {
+ id: String(kotaTerpilih.id),
+ nama: kotaTerpilih.name,
+ lat: String(kotaTerpilih.latitude),
+ lon: String(kotaTerpilih.longitude),
+ },
+ })
+ }
+ />
+ </>
 )}
 
 {/* 2. PM2.5, PM10, dan Atribusi di Paling Bawah */}
