@@ -13,8 +13,11 @@ import { konversiTingkatAQI } from "../../services/weatherAdapter";
 import { labelKodeCuaca } from "../../constants/weatherCodes";
 import { HasilGeocoding } from "../../../types/geocoding";
 import { DataCuacaLengkap, DataKualitasUdara } from "../../../types/weather";
+import { mintaIzinLokasi, ambilKoordinatSaatIni } from "../../services/locationService";
+
 
 export default function HalamanUtama() {
+  const [pesanLokasi, setPesanLokasi] = useState<string | null>(null);
   const [teksCari, setTeksCari] = useState("");
   const [hasilPencarian, setHasilPencarian] = useState<HasilGeocoding[]>([]);
   const [kotaTerpilih, setKotaTerpilih] = useState<HasilGeocoding | null>(null);
@@ -54,11 +57,32 @@ export default function HalamanUtama() {
       if (idSaatIni === requestIdRef.current) setSedangMemuat(false);
     }
   }
-
+  async function gunakanLokasiSaatIni() {
+ const status = await mintaIzinLokasi();
+ if (status === "denied") {
+ setPesanLokasi("Izin lokasi ditolak. Silakan cari kota secara manual di atas.");
+ return;
+ }
+ if (status === "unavailable") {
+ setPesanLokasi("Layanan lokasi tidak aktif di perangkat ini. Silakan cari kota secara manual.");
+ return;
+ }
+ setPesanLokasi(null);
+ const koordinat = await ambilKoordinatSaatIni();
+ pilihKota({
+ id: -1,
+ name: "Lokasi Saat Ini",
+ latitude: koordinat.latitude,
+ longitude: koordinat.longitude,
+ country: "",
+ });
+}
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: 16, flexGrow: 1, gap: 16 }}>
         <SearchBox onCari={setTeksCari} />
+        <Button title="Gunakan Lokasi Saat Ini" onPress={gunakanLokasiSaatIni} />
+        {pesanLokasi && <Text>{pesanLokasi}</Text>}
 
         {/* Hasil Pencarian Kota */}
         {hasilPencarian.map((kota) => (
@@ -78,39 +102,38 @@ export default function HalamanUtama() {
             />
           </View>
         )}
+          {/* Tampilan Kartu Utama & Info Harian */}
+{cuaca && kualitasUdara && kotaTerpilih && !sedangMemuat && (
+  <View style={{ gap: 8 }}>
+    <WeatherCard
+      kota={kotaTerpilih.name}
+      suhu={cuaca.saatIni.suhu}
+      tingkatAQI={konversiTingkatAQI(kualitasUdara.indeksAQI)}
+      indeksAQI={kualitasUdara.indeksAQI}
+    />
 
-        {/* Tampilan Kartu Utama & Info Harian */}
-        {cuaca && kualitasUdara && kotaTerpilih && !sedangMemuat && (
-          <View style={{ gap: 8 }}>
-            <WeatherCard
-              kota={kotaTerpilih.name}
-              suhu={cuaca.saatIni.suhu}
-              tingkatAQI={konversiTingkatAQI(kualitasUdara.indeksAQI)}
-              indeksAQI={kualitasUdara.indeksAQI}
-            />
+    {/* 1. Suhu Maksimal & Minimal Harian Asli dari API */}
+    {cuaca.harian && (
+      <Text style={{ fontSize: 12, color: "#666", textAlign: "center" }}>
+        Suhu Hari Ini: Min {cuaca.harian.suhuMinimal[0]}°C / Maks {cuaca.harian.suhuMaksimal[0]}°C
+      </Text>
+    )}
 
-            {/* Suhu Maksimal & Minimal Hari Ini dari API */}
-            {cuaca.harian && (
-              <Text style={{ fontSize: 12, color: "#666", textAlign: "center" }}>
-                Suhu Hari Ini: Min {cuaca.harian.suhuMinimal[0]}°C / Maks {cuaca.harian.suhuMaksimal[0]}°C
-              </Text>
-            )}
+    <Text style={{ fontSize: 12, color: "#888", textAlign: "center" }}>
+      Kondisi: {labelKodeCuaca(cuaca.saatIni.kodeCuaca)} • Angin {cuaca.saatIni.kecepatanAngin} km/j
+    </Text>
+  </View>
+)}
 
-            <Text style={{ fontSize: 12, color: "#888", textAlign: "center" }}>
-              Kondisi: {labelKodeCuaca(cuaca.saatIni.kodeCuaca)} • Angin: {cuaca.saatIni.kecepatanAngin} km/j
-            </Text>
-          </View>
-        )}
-
-        {/* PM2.5, PM10 & Atribusi di Paling Bawah */}
-        <View style={{ marginTop: "auto", paddingTop: 16, paddingBottom: 24, alignItems: "center" }}>
-          {kualitasUdara && (
-            <Text style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>
-              Detail Air Quality: PM2.5: {kualitasUdara.pm25} µg/m³ | PM10: {kualitasUdara.pm10} µg/m³
-            </Text>
-          )}
-          <AtribusiCuaca />
-        </View>
+{/* 2. PM2.5, PM10, dan Atribusi di Paling Bawah */}
+<View style={{ marginTop: "auto", paddingTop: 16, paddingBottom: 24, alignItems: "center" }}>
+  {kualitasUdara && (
+    <Text style={{ fontSize: 11, color: "#888", marginBottom: 6, textAlign: "center" }}>
+      PM2.5: {kualitasUdara.pm25} µg/m³ | PM10: {kualitasUdara.pm10} µg/m³
+    </Text>
+  )}
+  <AtribusiCuaca />
+</View>
       </ScrollView>
     </SafeAreaView>
   );
