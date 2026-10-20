@@ -7,8 +7,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
-        tabBarActiveTintColor: "#0D9488", // Warna aksen saat tab dipilih (Teal)
-        tabBarInactiveTintColor: "#6B7280", // Warna saat tidak dipilih (Gray)
+        tabBarActiveTintColor: "#0D9488",
+        tabBarInactiveTintColor: "#6B7280",
       }}
     >
       <Tabs.Screen
