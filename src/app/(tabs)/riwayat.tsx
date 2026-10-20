@@ -1,9 +1,12 @@
+// src/app/(tabs)/riwayat.tsx
 import React, { useState, useCallback } from "react";
 import { View, Text, Button, Alert, Platform, ScrollView, TouchableOpacity } from "react-native"; 
 import { useFocusEffect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { ambilSemuaFavorit, hapusFavorit } from "../../services/favoriteStorage";
+import { hapusCacheKota, buatKunci } from "../../services/cacheRepository";
 import { KotaFavorit } from "../../../types/favorit";
 
 const KEY_RIWAYAT = "jelajah_aman_riwayat_pencarian";
@@ -14,32 +17,64 @@ export default function TabRiwayat() {
 
   useFocusEffect(
     useCallback(() => {
+      // Load Favorit
       ambilSemuaFavorit().then(setDaftarFavorit);
       
+      // Load Riwayat Pencarian
       AsyncStorage.getItem(KEY_RIWAYAT).then((data) => {
-        if (data) {
-          setDaftarRiwayat(JSON.parse(data));
-        } else {
-          setDaftarRiwayat([]);
-        }
+        if (data) setDaftarRiwayat(JSON.parse(data));
+        else setDaftarRiwayat([]);
       });
     }, [])
   );
 
-  async function hapus(id: number) {
+  //HAPUS FAVORIT 
+  async function hapusFavo(id: number) {
     await hapusFavorit(id);
     setDaftarFavorit((prev) => prev.filter((k) => k.id !== id));
   }
 
-  function konfirmasiHapus(id: number, nama: string) {
+  function konfirmasiHapusFavorit(id: number, nama: string) {
     if (Platform.OS === "web") {
-      const setuju = window.confirm(`Yakin hapus ${nama}?`);
-      if (setuju) hapus(id);
+      if (window.confirm(`Yakin hapus ${nama} dari favorit?`)) hapusFavo(id);
     } else {
-      Alert.alert("Konfirmasi Hapus", `Yakin hapus ${nama}?`, [
+      Alert.alert("Konfirmasi Hapus", `Yakin hapus ${nama} dari favorit?`, [
         { text: "Batal", style: "cancel" },
-        { text: "Hapus", style: "destructive", onPress: () => hapus(id) },
+        { text: "Hapus", style: "destructive", onPress: () => hapusFavo(id) },
       ]);
+    }
+  }
+
+  //HAPUS CACHE & RIWAYAT 
+  async function prosesHapusRiwayatDanCache(item: any) {
+    if (item.latitude && item.longitude) {
+      const kunci = buatKunci(item.latitude, item.longitude);
+      await hapusCacheKota(kunci);
+    }
+
+    const riwayatBaru = daftarRiwayat.filter((r) => r.nama !== item.nama);
+    await AsyncStorage.setItem(KEY_RIWAYAT, JSON.stringify(riwayatBaru));
+    setDaftarRiwayat(riwayatBaru);
+  }
+
+  function konfirmasiHapusCacheItem(item: any) {
+    if (Platform.OS === "web") {
+      if (window.confirm(`Hapus cache dan riwayat pencarian ${item.nama}?`)) {
+        prosesHapusRiwayatDanCache(item);
+      }
+    } else {
+      Alert.alert(
+        "Konfirmasi Hapus Cache",
+        `Yakin ingin menghapus cache data untuk kota ${item.nama}?`,
+        [
+          { text: "Batal", style: "cancel" },
+          {
+            text: "Hapus",
+            style: "destructive",
+            onPress: () => prosesHapusRiwayatDanCache(item),
+          },
+        ]
+      );
     }
   }
 
@@ -75,14 +110,14 @@ export default function TabRiwayat() {
           {daftarFavorit.map((kota) => (
             <View key={kota.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontSize: 16 }}>{kota.nama}</Text>
-              <Button title="Hapus" onPress={() => konfirmasiHapus(kota.id, kota.nama)} />
+              <Button title="Hapus" onPress={() => konfirmasiHapusFavorit(kota.id, kota.nama)} />
             </View>
           ))}
         </View>
 
         <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
 
-        {/* BAGIAN 2: RIWAYAT PENCARIAN TERAKHIR */}
+        {/* BAGIAN 2: RIWAYAT PENCARIAN & HAPUS CACHE (TUGAS 2 & 3 DISATUKAN) */}
         <View style={{ gap: 12 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <View>
@@ -98,21 +133,33 @@ export default function TabRiwayat() {
             <Text style={{ color: "#888", fontStyle: "italic" }}>Belum ada riwayat pencarian</Text>
           ) : (
             daftarRiwayat.map((item, index) => (
-              <TouchableOpacity
+              <View
                 key={index}
-                onPress={() => klikRiwayat(item)}
                 style={{
-                  padding: 12,
+                  padding: 10,
                   backgroundColor: "#F3F4F6",
                   borderRadius: 8,
                   flexDirection: "row",
                   justifyContent: "space-between",
-                  alignItems: "center"
+                  alignItems: "center",
                 }}
               >
-                <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.nama}</Text>
-                <Text style={{ fontSize: 12, color: "#0D9488" }}>Cari lagi</Text>
-              </TouchableOpacity>
+                {/* Klik nama kota untuk mencari ulang */}
+                <TouchableOpacity
+                  onPress={() => klikRiwayat(item)}
+                  style={{ flex: 1 }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.nama}</Text>
+                  <Text style={{ fontSize: 12, color: "#0D9488" }}>Ketuk untuk cari ulang</Text>
+                </TouchableOpacity>
+
+                {/* Tombol Hapus Cache per item */}
+                <Button
+                  title="Hapus Cache"
+                  color="#EF4444"
+                  onPress={() => konfirmasiHapusCacheItem(item)}
+                />
+              </View>
             ))
           )}
         </View>
