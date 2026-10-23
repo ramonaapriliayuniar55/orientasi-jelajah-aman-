@@ -13,7 +13,6 @@ import { useTheme } from "../../context/ThemeContext";
 const KEY_RIWAYAT = "jelajah_aman_riwayat_pencarian";
 
 export default function TabRiwayat() {
-  // 1. Panggil variabel warna dinamis di baris paling atas fungsi
   const { colors } = useTheme();
 
   const [daftarFavorit, setDaftarFavorit] = useState<KotaFavorit[]>([]);

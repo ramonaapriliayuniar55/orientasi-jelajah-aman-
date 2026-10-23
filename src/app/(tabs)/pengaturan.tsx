@@ -71,7 +71,7 @@ export default function TabPengaturan() {
 
       <View style={{ height: 1, backgroundColor: colors.border }} />
 
-      {/* SEKSI HAPUS CACHE GLOBAL (BAWAAN SIKLUS SEBELUMNYA) */}
+      {/* SEKSI HAPUS CACHE GLOBAL */}
       <View style={{ gap: 8 }}>
         <Button title="Hapus Data Cuaca Tersimpan" onPress={hapusDataTersimpan} color="#EF4444" />
         {pesan && (
